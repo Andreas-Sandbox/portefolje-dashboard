@@ -51,7 +51,7 @@ function fromGitHub() {
   // 1) Prosjekt-items med egendefinerte felt (Team, Kvartal, Status).
   const proj = gh([
     "project", "item-list", PROJECT_NUMBER,
-    "--owner", OWNER, "--format", "json", "--limit", "200",
+    "--owner", OWNER, "--format", "json", "--limit", "30",
   ]);
 
   // Repo -> team, brukt til å bygge globalt unike, korte id-er (issue-numre
@@ -72,7 +72,7 @@ function fromGitHub() {
   for (const repo of repos) {
     try {
       const issues = gh([
-        "issue", "list", "--repo", repo, "--state", "all", "--limit", "200",
+        "issue", "list", "--repo", repo, "--state", "all", "--limit", "30",
         "--json", "number,blockedBy,subIssues",
       ]);
       for (const it of issues) {
