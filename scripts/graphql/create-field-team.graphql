@@ -1,0 +1,26 @@
+mutation($ownerId: ID!) {
+  createIssueField(input: {
+    ownerId: $ownerId
+    name: "Team"
+    description: "Hvilket team eier leveransen"
+    dataType: SINGLE_SELECT
+    visibility: ALL
+    options: [
+      { name: "Kompass", color: BLUE, priority: 0 }
+      { name: "Nordlys", color: PURPLE, priority: 1 }
+      { name: "Puls", color: PINK, priority: 2 }
+      { name: "Vega", color: ORANGE, priority: 3 }
+    ]
+  }) {
+    issueField {
+      ... on IssueFieldSingleSelect {
+        id
+        name
+        options {
+          id
+          name
+        }
+      }
+    }
+  }
+}

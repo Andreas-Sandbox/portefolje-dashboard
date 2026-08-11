@@ -1,0 +1,36 @@
+query($login: String!) {
+  organization(login: $login) {
+    issueFields(first: 50) {
+      nodes {
+        ... on IssueFieldText {
+          id
+          name
+        }
+        ... on IssueFieldNumber {
+          id
+          name
+        }
+        ... on IssueFieldDate {
+          id
+          name
+        }
+        ... on IssueFieldSingleSelect {
+          id
+          name
+          options {
+            id
+            name
+          }
+        }
+        ... on IssueFieldMultiSelect {
+          id
+          name
+          options {
+            id
+            name
+          }
+        }
+      }
+    }
+  }
+}

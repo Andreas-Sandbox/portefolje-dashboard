@@ -1,0 +1,14 @@
+mutation($ownerId: ID!, $name: String!, $description: String!, $color: IssueTypeColor!) {
+  createIssueType(input: {
+    ownerId: $ownerId
+    isEnabled: true
+    name: $name
+    description: $description
+    color: $color
+  }) {
+    issueType {
+      id
+      name
+    }
+  }
+}

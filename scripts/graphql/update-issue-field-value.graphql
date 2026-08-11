@@ -1,0 +1,11 @@
+mutation($issueId: ID!, $fieldId: ID!, $optionId: ID!) {
+  updateIssueFieldValue(input: {
+    issueId: $issueId
+    issueField: {
+      fieldId: $fieldId
+      singleSelectOptionId: $optionId
+    }
+  }) {
+    clientMutationId
+  }
+}

@@ -1,0 +1,13 @@
+mutation($fieldId: ID!, $levertId: String!, $paaPlanId: String!, $faresonenId: String!, $blokkertId: String!) {
+  updateProjectV2Field(input: {
+    fieldId: $fieldId
+    singleSelectOptions: [
+      { id: $levertId, name: "Levert", color: GRAY, description: "" }
+      { id: $paaPlanId, name: "På plan", color: GRAY, description: "" }
+      { id: $faresonenId, name: "I faresonen", color: GRAY, description: "" }
+      { id: $blokkertId, name: "Blokkert", color: GRAY, description: "" }
+    ]
+  }) {
+    clientMutationId
+  }
+}

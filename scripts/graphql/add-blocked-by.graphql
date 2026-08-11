@@ -1,0 +1,8 @@
+mutation($issueId: ID!, $blockingIssueId: ID!) {
+  addBlockedBy(input: {
+    issueId: $issueId
+    blockingIssueId: $blockingIssueId
+  }) {
+    clientMutationId
+  }
+}

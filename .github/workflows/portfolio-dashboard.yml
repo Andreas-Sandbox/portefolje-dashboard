@@ -1,0 +1,76 @@
+name: Porteføljedashboard
+
+# Holder dashboardet ferskt uten manuelt arbeid:
+#  - hver 3. time, og hver gang et issue endres
+#  - genererer data.json + Mermaid fra GitHub-data
+#  - publiserer siden på GitHub Pages
+#  - oppdaterer et fast "Avhengighetskart"-issue med diagrammet
+on:
+  schedule:
+    - cron: "0 */3 * * *"
+  workflow_dispatch:
+  issues:
+    types: [opened, edited, closed, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  issues: write
+  pages: write
+  id-token: write
+
+# Unngå overlappende kjøringer
+concurrency:
+  group: portfolio-dashboard
+  cancel-in-progress: true
+
+env:
+  OWNER: Andreas-Sandbox
+  PROJECT_NUMBER: "1"
+  DASHBOARD_ISSUE: "1"
+  DASHBOARD_REPO: Andreas-Sandbox/portefolje-dashboard
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Generer data.json + Mermaid
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/generate-dashboard.mjs
+
+      - name: Oppdater "Avhengighetskart"-issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "## Avhengigheter på tvers av team"
+            echo "_Oppdatert automatisk $(date -u '+%Y-%m-%d %H:%M UTC')_"
+            echo
+            cat dependencies.mmd
+          } > issue-body.md
+          gh issue edit "$DASHBOARD_ISSUE" --repo "$DASHBOARD_REPO" --body-file issue-body.md
+
+      - name: Pakk siden for Pages
+        run: |
+          mkdir -p _site
+          cp index.html _site/index.html
+          cp data.json  _site/data.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

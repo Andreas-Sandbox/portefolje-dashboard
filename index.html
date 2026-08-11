@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>App-portefølje · Lederinnsyn</title>
+<style>
+  :root{
+    --bg:#0D1117; --panel:#161B22; --panel2:#1C2230; --line:#2C333F;
+    --text:#E6EDF3; --muted:#8B949E; --faint:#636C78;
+    --done:#58A6FF; --ok:#3FB950; --risk:#D29922; --blocked:#F85149;
+    --signal:#F23545;
+    --done-bg:#13263c; --ok-bg:#15301f; --risk-bg:#352a18; --blocked-bg:#3a1d1d;
+    --r:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:"Inter","IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    line-height:1.5;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:26px 22px 60px}
+  .mono{font-family:"IBM Plex Mono","SF Mono",ui-monospace,monospace}
+
+  /* header */
+  header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  header h1{font-size:23px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:11px}
+  header h1 .gh{width:26px;height:26px;border-radius:50%;background:var(--text);color:var(--bg);display:grid;place-items:center;font-weight:800;font-size:14px}
+  header .sub{color:var(--muted);font-size:13px;margin-top:6px}
+  .live{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ok);
+    background:var(--ok-bg);border:1px solid #234a32;border-radius:999px;padding:6px 13px;font-family:"IBM Plex Mono",monospace}
+  .live .blip{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(63,185,80,.6);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(63,185,80,.5)}70%{box-shadow:0 0 0 7px rgba(63,185,80,0)}100%{box-shadow:0 0 0 0 rgba(63,185,80,0)}}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:24px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+  .kpi .v{font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1}
+  .kpi .l{font-size:12px;color:var(--muted);margin-top:8px;text-transform:uppercase;letter-spacing:.05em;font-family:"IBM Plex Mono",monospace}
+  .kpi.bar .track{height:6px;background:var(--line);border-radius:3px;margin-top:12px;overflow:hidden}
+  .kpi.bar .fill{height:100%;background:var(--ok);border-radius:3px;transition:width .9s ease}
+
+  /* tabs */
+  .tabs{display:flex;gap:4px;margin-top:30px;border-bottom:1px solid var(--line)}
+  .tab{padding:11px 16px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none}
+  .tab:hover{color:var(--text)}
+  .tab.act{color:var(--text);border-bottom-color:var(--signal)}
+  .panes{margin-top:20px}
+  .pane{display:none}
+  .pane.act{display:block;animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .pane-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+  .pane-head h2{font-size:16px;font-weight:700}
+  .pane-head p{font-size:13px;color:var(--muted)}
+
+  /* graph */
+  .graph-wrap{display:grid;grid-template-columns:1fr 280px;gap:16px}
+  .graph-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:8px;overflow:hidden}
+  svg.graph{width:100%;height:auto;display:block}
+  .gnode{cursor:pointer;transition:opacity .2s}
+  .gnode .box{transition:stroke-width .15s, filter .15s}
+  .gnode:hover .box{stroke-width:2.4}
+  .gnode.dim{opacity:.28}
+  .edge{fill:none;stroke:var(--faint);stroke-width:1.6;transition:opacity .2s}
+  .edge.crit{stroke:var(--signal);stroke-width:2.4;filter:drop-shadow(0 0 5px rgba(242,53,69,.55))}
+  .edge.dim{opacity:.12}
+  .lane-label{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--muted)}
+  .lane-sep{stroke:var(--line);stroke-dasharray:3 4}
+  .qhdr{font-family:"IBM Plex Mono",monospace;font-size:11px;fill:var(--faint);letter-spacing:.08em;text-transform:uppercase}
+  .ntitle{font-size:10.5px;fill:var(--text);font-weight:600}
+  .nid{font-family:"IBM Plex Mono",monospace;font-size:9px;fill:var(--muted)}
+
+  /* detail drawer */
+  .drawer{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;align-self:start;position:sticky;top:16px}
+  .drawer .did{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted)}
+  .drawer h3{font-size:17px;font-weight:700;margin:6px 0 12px;line-height:1.25}
+  .drawer .meta-row{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line)}
+  .drawer .meta-row span:first-child{color:var(--muted)}
+  .drawer .progress{margin-top:14px}
+  .drawer .progress .track{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:6px}
+  .drawer .progress .fill{height:100%;border-radius:4px}
+  .drawer .dep{margin-top:14px;font-size:13px}
+  .drawer .dep .chip{display:inline-flex;align-items:center;gap:6px;background:var(--blocked-bg);color:var(--blocked);border:1px solid #4a2424;border-radius:6px;padding:4px 9px;font-family:"IBM Plex Mono",monospace;font-size:11px;margin-top:6px}
+  .drawer a.open{display:inline-block;margin-top:16px;font-size:13px;color:var(--done);text-decoration:none}
+  .drawer a.open:hover{text-decoration:underline}
+
+  /* status pill */
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:6px;font-family:"IBM Plex Mono",monospace}
+  .pill .d{width:7px;height:7px;border-radius:50%}
+  .s-done{background:var(--done-bg);color:var(--done)} .s-done .d{background:var(--done)}
+  .s-ok{background:var(--ok-bg);color:var(--ok)} .s-ok .d{background:var(--ok)}
+  .s-risk{background:var(--risk-bg);color:var(--risk)} .s-risk .d{background:var(--risk)}
+  .s-blocked{background:var(--blocked-bg);color:var(--blocked)} .s-blocked .d{background:var(--blocked)}
+
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:12px;font-family:"IBM Plex Mono",monospace}
+  .legend i{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle}
+  .legend .crit-key{width:18px;height:0;border-top:2.4px solid var(--signal);display:inline-block;margin-right:6px;vertical-align:middle}
+
+  /* roadmap */
+  .rm{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+  .rm-head{display:grid;grid-template-columns:110px 1fr 1fr;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--faint);letter-spacing:.06em;text-transform:uppercase;padding-bottom:10px;border-bottom:1px dashed var(--line);margin-bottom:8px}
+  .rm-row{display:grid;grid-template-columns:110px 1fr 1fr;align-items:center;padding:8px 0}
+  .rm-team{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .rm-team i{width:8px;height:8px;border-radius:2px}
+  .rm-lane{position:relative;height:34px}
+  .rm-bar{position:absolute;top:4px;height:26px;border-radius:7px;display:flex;align-items:center;gap:7px;padding:0 10px;font-size:11.5px;font-weight:600;color:var(--text);overflow:hidden}
+  .rm-bar .pf{position:absolute;left:0;top:0;bottom:0;opacity:.22}
+  .rm-bar .txt{position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* table */
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  th,td{text-align:left;padding:13px 16px;font-size:13.5px;border-bottom:1px solid var(--line)}
+  th{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:500}
+  tr:last-child td{border-bottom:none}
+  td .tm{font-weight:600;display:flex;align-items:center;gap:8px}
+  td .tm i{width:8px;height:8px;border-radius:2px}
+  .mini{display:inline-block;width:90px;height:6px;background:var(--line);border-radius:3px;overflow:hidden;vertical-align:middle;margin-right:8px}
+  .mini .f{height:100%;background:var(--ok);border-radius:3px}
+
+  /* footer / how */
+  .how{margin-top:34px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+  .how summary{cursor:pointer;font-weight:600;font-size:14px;list-style:none;display:flex;align-items:center;gap:9px}
+  .how summary::-webkit-details-marker{display:none}
+  .how summary .ar{color:var(--signal);transition:transform .2s}
+  .how[open] summary .ar{transform:rotate(90deg)}
+  .how p{font-size:13.5px;color:var(--muted);margin-top:14px}
+  .how pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;overflow:auto;margin-top:12px;font-family:"IBM Plex Mono",monospace;font-size:12px;color:#c9d1d9;line-height:1.6}
+  .how .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted)}
+  .how .flow .step{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:7px 11px}
+  .how .flow .ar2{color:var(--faint)}
+
+  .note{margin-top:22px;font-size:12px;color:var(--faint);font-family:"IBM Plex Mono",monospace;line-height:1.6}
+
+  @media (max-width:820px){
+    .kpis{grid-template-columns:1fr 1fr}
+    .graph-wrap{grid-template-columns:1fr}
+    .drawer{position:static}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1><span class="gh">○</span> App-portefølje — lederinnsyn</h1>
+      <div class="sub">Fire team · Q3–Q4 2026 · bygget fra GitHub-data</div>
+    </div>
+    <div class="live"><span class="blip"></span> Oppdatert <span id="updated" class="mono"></span></div>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="tabs">
+    <button class="tab act" data-tab="graph">Avhengighetskart</button>
+    <button class="tab" data-tab="roadmap">Roadmap</button>
+    <button class="tab" data-tab="teams">Team-status</button>
+  </div>
+
+  <div class="panes">
+
+    <!-- GRAPH -->
+    <div class="pane act" data-pane="graph">
+      <div class="pane-head">
+        <div><h2>Hvem venter på hvem</h2><p>Det Jira gir som program-board — her tegnet fra «blocked by»-relasjonene i GitHub. Klikk en boks for detaljer.</p></div>
+      </div>
+      <div class="graph-wrap">
+        <div class="graph-card"><svg class="graph" id="graph" xmlns="http://www.w3.org/2000/svg"></svg></div>
+        <div class="drawer" id="drawer"></div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--done)"></i>Levert</span>
+        <span><i style="background:var(--ok)"></i>På plan</span>
+        <span><i style="background:var(--risk)"></i>I faresonen</span>
+        <span><i style="background:var(--blocked)"></i>Blokkert</span>
+        <span><span class="crit-key"></span>Kritisk sti</span>
+      </div>
+    </div>
+
+    <!-- ROADMAP -->
+    <div class="pane" data-pane="roadmap">
+      <div class="pane-head">
+        <div><h2>Hva er forpliktet, og når</h2><p>Committet scope per team over kvartalene. Skyggen i baren viser fremdrift.</p></div>
+      </div>
+      <div class="rm">
+        <div class="rm-head"><span>Team</span><span>Q3 2026</span><span>Q4 2026</span></div>
+        <div id="roadmap"></div>
+      </div>
+    </div>
+
+    <!-- TEAMS -->
+    <div class="pane" data-pane="teams">
+      <div class="pane-head">
+        <div><h2>Helse per team</h2><p>Temperaturmåling på ett blikk — uten å åpne en eneste issue.</p></div>
+      </div>
+      <table>
+        <thead><tr><th>Team</th><th>Committet</th><th>På plan</th><th>Trenger blikk</th><th>Fremdrift</th><th>Status</th></tr></thead>
+        <tbody id="teamsBody"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <details class="how">
+    <summary><span class="ar">▸</span> Slik holder dette seg ferskt — uten manuelt arbeid</summary>
+    <p>Ingen vedlikeholder denne siden. En GitHub Action kjører på timeplan og når issues endres: den henter prosjekt-feltene (team, kvartal, status) og avhengighetene via <span class="mono">gh</span>-CLI-et, regner ut tallene over, og publiserer siden på GitHub Pages. Samme data skrives også som et Mermaid-diagram inn i et fast «Avhengighetskart»-issue, som GitHub renderer direkte:</p>
+    <div class="flow">
+      <span class="step">Issue / PR endres</span><span class="ar2">→</span>
+      <span class="step">Action henter data</span><span class="ar2">→</span>
+      <span class="step">data.json + Mermaid</span><span class="ar2">→</span>
+      <span class="step">Pages + issue oppdateres</span>
+    </div>
+    <pre id="mermaid"></pre>
+    <p style="margin-top:10px">Mermaid-blokken over er nøyaktig det som limes inn i et issue og vises som diagram på GitHub — null infrastruktur. Den interaktive grafen øverst er «nivå opp»: en statisk side på Pages som agenter og Copilot kan utvide videre, siden alt er kode.</p>
+  </details>
+
+  <p class="note">POC · stiliserte eksempeldata, ikke ekte issues. Tall og team er funnet på for å vise formen på innsynet. Kjører helt frittstående — ingen nett eller innlogging.</p>
+
+</div>
+
+<script>
+const DATA = {
+  meta:{ portfolio:"App-portefølje", updated:"15.06.2026 07:00", quarters:["Q3 2026","Q4 2026"] },
+  teams:[
+    {id:"kompass", name:"Kompass", color:"#58A6FF"},
+    {id:"nordlys", name:"Nordlys", color:"#A371F7"},
+    {id:"puls",    name:"Puls",    color:"#3FB950"},
+    {id:"vega",    name:"Vega",    color:"#D29922"}
+  ],
+  items:[
+    {id:"#103", title:"Innlogging & SSO",         team:"kompass", quarter:"Q3 2026", status:"done",     progress:100, subs:[8,8],   blockedBy:[]},
+    {id:"#150", title:"Betalingsflyt v1",          team:"kompass", quarter:"Q4 2026", status:"ok",       progress:70,  subs:[7,12],  blockedBy:["#103"]},
+    {id:"#190", title:"Innstillinger & profil",    team:"kompass", quarter:"Q4 2026", status:"ok",       progress:40,  subs:[3,9],   blockedBy:[]},
+    {id:"#142", title:"Plattform-API",             team:"puls",    quarter:"Q3 2026", status:"done",     progress:100, subs:[10,10], blockedBy:[]},
+    {id:"#175", title:"Push-varsler",              team:"puls",    quarter:"Q4 2026", status:"ok",       progress:55,  subs:[4,8],   blockedBy:[]},
+    {id:"#160", title:"Dashboard MVP",             team:"vega",    quarter:"Q3 2026", status:"ok",       progress:85,  subs:[6,7],   blockedBy:[]},
+    {id:"#168", title:"Offline-modus",             team:"nordlys", quarter:"Q4 2026", status:"risk",     progress:45,  subs:[4,10],  blockedBy:["#142"]},
+    {id:"#181", title:"Synk & konflikthåndtering", team:"nordlys", quarter:"Q4 2026", status:"blocked",  progress:0,   subs:[0,6],   blockedBy:["#168"]}
+  ]
+};
+
+const COL = {done:"#58A6FF", ok:"#3FB950", risk:"#D29922", blocked:"#F85149"};
+const BG  = {done:"#13263c", ok:"#15301f", risk:"#352a18", blocked:"#3a1d1d"};
+const LABEL = {done:"Levert", ok:"På plan", risk:"I faresonen", blocked:"Blokkert"};
+const PILLCLASS = {done:"s-done", ok:"s-ok", risk:"s-risk", blocked:"s-blocked"};
+const byId = id => DATA.items.find(i=>i.id===id);
+const teamById = id => DATA.teams.find(t=>t.id===id);
+
+/* ---- critical path: walk blockedBy chains that terminate in a blocked item ---- */
+let critEdges = new Set();
+let critNodes = new Set();
+function recomputeCrit(){
+  critEdges = new Set(); critNodes = new Set();
+  DATA.items.filter(i=>i.status==="blocked").forEach(start=>{
+    let cur = start;
+    critNodes.add(cur.id);
+    while(cur && cur.blockedBy.length){
+      const parent = cur.blockedBy[0];
+      critEdges.add(parent+"->"+cur.id);
+      critNodes.add(parent);
+      cur = byId(parent);
+    }
+  });
+}
+
+/* ---- KPIs ---- */
+function renderKpis(){
+  const items = DATA.items;
+  const total = items.length;
+  const onPlan = items.filter(i=>i.status==="done"||i.status==="ok").length;
+  const risk = items.filter(i=>i.status==="risk").length;
+  const blocked = items.filter(i=>i.status==="blocked").length;
+  const avg = Math.round(items.reduce((s,i)=>s+i.progress,0)/total);
+  document.getElementById("kpis").innerHTML = `
+    <div class="kpi bar"><div class="v">${avg}%</div><div class="l">Snitt fremdrift</div><div class="track"><div class="fill" style="width:${avg}%"></div></div></div>
+    <div class="kpi"><div class="v">${onPlan}<span style="color:var(--faint);font-size:18px">/${total}</span></div><div class="l">På plan</div></div>
+    <div class="kpi"><div class="v" style="color:var(--risk)">${risk}</div><div class="l">I faresonen</div></div>
+    <div class="kpi"><div class="v" style="color:var(--blocked)">${blocked}</div><div class="l">Blokkert</div></div>`;
+}
+
+/* ---- dependency graph (SVG, swimlanes by team, x by quarter) ---- */
+const VBW=720, HEAD=46, LANE=150, NODEW=176, NODEH=58, GUT=104;
+const QX = {}; DATA.meta.quarters.forEach((q,i)=> QX[q] = GUT + 60 + i*((VBW-GUT-80)/(DATA.meta.quarters.length)) + 60);
+const nodePos = {};
+
+function wrap(t){ // up to 2 lines ~22 chars
+  if(t.length<=22) return [t];
+  const words=t.split(" "); let l1="",l2="";
+  for(const w of words){ if((l1+" "+w).trim().length<=22 && !l2) l1=(l1+" "+w).trim(); else l2=(l2+" "+w).trim(); }
+  return [l1,l2];
+}
+
+function layout(){
+  DATA.teams.forEach((team,ti)=>{
+    const laneTop = HEAD + ti*LANE;
+    const laneItems = DATA.items.filter(i=>i.team===team.id);
+    DATA.meta.quarters.forEach(q=>{
+      const grp = laneItems.filter(i=>i.quarter===q);
+      grp.forEach((it,k)=>{
+        const cx = QX[q];
+        const cy = laneTop + LANE/2 + (k-(grp.length-1)/2)*(NODEH+14);
+        nodePos[it.id] = {x:cx-NODEW/2, y:cy-NODEH/2, cx, cy};
+      });
+    });
+  });
+}
+
+function renderGraph(){
+  layout();
+  const H = HEAD + DATA.teams.length*LANE + 10;
+  const svg = document.getElementById("graph");
+  svg.setAttribute("viewBox",`0 0 ${VBW} ${H}`);
+  let s = `<defs>
+    <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="${'#636C78'}"/></marker>
+    <marker id="arc" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="${COL.blocked}"/></marker>
+  </defs>`;
+
+  // quarter headers
+  DATA.meta.quarters.forEach(q=>{ s+=`<text class="qhdr" x="${QX[q]}" y="22" text-anchor="middle">${q}</text>`; });
+
+  // lanes
+  DATA.teams.forEach((team,ti)=>{
+    const top = HEAD + ti*LANE;
+    if(ti>0) s+=`<line class="lane-sep" x1="8" y1="${top}" x2="${VBW-8}" y2="${top}"/>`;
+    s+=`<text class="lane-label" x="12" y="${top+LANE/2-6}"><tspan style="fill:${team.color};font-weight:700">●</tspan> ${team.name}</text>`;
+  });
+
+  // edges
+  DATA.items.forEach(it=>{
+    it.blockedBy.forEach(bid=>{
+      const a=nodePos[bid], b=nodePos[it.id]; if(!a||!b) return;
+      const key=bid+"->"+it.id, crit=critEdges.has(key);
+      const x1=a.x+NODEW, y1=a.cy, x2=b.x, y2=b.cy;
+      const dx=Math.max(50,Math.abs(x2-x1)*0.5);
+      const sameCol=Math.abs(x1-x2)<40;
+      const path = sameCol
+        ? `M${x1-NODEW/2},${a.y+NODEH} C${x1-NODEW/2+90},${a.y+NODEH+30} ${x2-NODEW/2+90},${b.y-30} ${x2-NODEW/2},${b.y}`
+        : `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`;
+      s+=`<path class="edge ${crit?'crit':''}" data-edge="${key}" d="${path}" marker-end="url(#${crit?'arc':'ar'})"/>`;
+    });
+  });
+
+  // nodes
+  DATA.items.forEach(it=>{
+    const p=nodePos[it.id]; const lines=wrap(it.title);
+    s+=`<g class="gnode" data-node="${it.id}" tabindex="0" role="button" aria-label="${it.id} ${it.title}">
+      <rect class="box" x="${p.x}" y="${p.y}" width="${NODEW}" height="${NODEH}" rx="9" fill="${BG[it.status]}" stroke="${COL[it.status]}" stroke-width="1.4"/>
+      <rect x="${p.x}" y="${p.y}" width="4" height="${NODEH}" rx="2" fill="${COL[it.status]}"/>
+      <text class="nid" x="${p.x+14}" y="${p.y+17}">${it.id} · ${LABEL[it.status]}</text>
+      <text class="ntitle" x="${p.x+14}" y="${p.y+33}">${lines[0]}</text>
+      ${lines[1]?`<text class="ntitle" x="${p.x+14}" y="${p.y+46}">${lines[1]}</text>`:''}
+      <rect x="${p.x+14}" y="${p.y+NODEH-11}" width="${NODEW-28}" height="4" rx="2" fill="#2C333F"/>
+      <rect x="${p.x+14}" y="${p.y+NODEH-11}" width="${(NODEW-28)*it.progress/100}" height="4" rx="2" fill="${COL[it.status]}"/>
+    </g>`;
+  });
+
+  svg.innerHTML=s;
+  svg.querySelectorAll(".gnode").forEach(g=>{
+    g.addEventListener("click",()=>select(g.dataset.node));
+    g.addEventListener("mouseenter",()=>highlight(g.dataset.node));
+    g.addEventListener("mouseleave",clearHl);
+    g.addEventListener("focus",()=>highlight(g.dataset.node));
+    g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();select(g.dataset.node);}});
+  });
+}
+
+function relatedOf(id){
+  const set=new Set([id]); const it=byId(id);
+  it.blockedBy.forEach(b=>set.add(b));
+  DATA.items.filter(x=>x.blockedBy.includes(id)).forEach(x=>set.add(x.id));
+  return set;
+}
+function highlight(id){
+  const rel=relatedOf(id);
+  document.querySelectorAll(".gnode").forEach(g=>g.classList.toggle("dim",!rel.has(g.dataset.node)));
+  document.querySelectorAll(".edge").forEach(e=>{
+    const [a,b]=e.dataset.edge.split("->");
+    e.classList.toggle("dim",!(rel.has(a)&&rel.has(b)&&(a===id||b===id)));
+  });
+}
+function clearHl(){
+  document.querySelectorAll(".gnode").forEach(g=>g.classList.remove("dim"));
+  document.querySelectorAll(".edge").forEach(e=>e.classList.remove("dim"));
+}
+
+function select(id){
+  const it=byId(id); const team=teamById(it.team);
+  const blockers = it.blockedBy.map(b=>{const x=byId(b);return {x};});
+  const blocking = DATA.items.filter(x=>x.blockedBy.includes(id));
+  let depHtml="";
+  if(blockers.length) depHtml += blockers.map(({x})=>`<div class="chip">⛔ venter på ${x.id} ${x.title} <span style="opacity:.7">(${LABEL[x.status]})</span></div>`).join("");
+  if(blocking.length) depHtml += blocking.map(x=>`<div class="chip" style="background:var(--panel2);color:var(--muted);border-color:var(--line)">↪ blokkerer ${x.id} ${x.title}</div>`).join("");
+  if(!depHtml) depHtml=`<div style="color:var(--faint);font-size:12px;margin-top:6px">Ingen avhengigheter.</div>`;
+
+  document.getElementById("drawer").innerHTML = `
+    <div class="did">${it.id} · ${team.name}</div>
+    <h3>${it.title}</h3>
+    <div class="meta-row"><span>Status</span><span class="pill ${PILLCLASS[it.status]}"><span class="d"></span>${LABEL[it.status]}</span></div>
+    <div class="meta-row"><span>Committet</span><span>${it.quarter}</span></div>
+    <div class="meta-row"><span>Deloppgaver</span><span class="mono">${it.subs[0]} / ${it.subs[1]}</span></div>
+    <div class="progress"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>Fremdrift</span><span>${it.progress}%</span></div>
+      <div class="track"><div class="fill" style="width:${it.progress}%;background:${COL[it.status]}"></div></div></div>
+    <div class="dep"><div style="color:var(--muted);font-size:12px">Avhengigheter</div>${depHtml}</div>
+    <a class="open" href="#" onclick="return false">Åpne ${it.id} i GitHub →</a>`;
+}
+
+/* ---- roadmap ---- */
+function renderRoadmap(){
+  const host=document.getElementById("roadmap");
+  host.innerHTML = DATA.teams.map(team=>{
+    const cells = DATA.meta.quarters.map(q=>{
+      const grp = DATA.items.filter(i=>i.team===team.id && i.quarter===q);
+      const bars = grp.map((it,k)=>{
+        const h=26, gap=4, top=4 + k*(h+gap);
+        return `<div class="rm-bar" style="left:1%;width:${Math.max(40,it.progress*0.6+38)}%;top:${top}px;background:${BG[it.status]};border:1px solid ${COL[it.status]}">
+          <div class="pf" style="width:${it.progress}%;background:${COL[it.status]}"></div>
+          <span class="txt">${it.title}</span></div>`;
+      }).join("");
+      const laneH = 34 + (grp.length>1?(grp.length-1)*30:0);
+      return `<div class="rm-lane" style="height:${laneH}px">${bars}</div>`;
+    }).join("");
+    return `<div class="rm-row" style="align-items:stretch"><div class="rm-team" style="padding-top:8px"><i style="background:${team.color}"></i>${team.name}</div>${cells}</div>`;
+  }).join("");
+}
+
+/* ---- teams table ---- */
+function renderTeams(){
+  document.getElementById("teamsBody").innerHTML = DATA.teams.map(team=>{
+    const its=DATA.items.filter(i=>i.team===team.id);
+    const onPlan=its.filter(i=>i.status==="done"||i.status==="ok").length;
+    const needs=its.filter(i=>i.status==="risk"||i.status==="blocked").length;
+    const avg=Math.round(its.reduce((s,i)=>s+i.progress,0)/its.length);
+    const worst = its.some(i=>i.status==="blocked")?"blocked":its.some(i=>i.status==="risk")?"risk":"ok";
+    return `<tr>
+      <td><div class="tm"><i style="background:${team.color}"></i>${team.name}</div></td>
+      <td class="mono">${its.length}</td>
+      <td class="mono" style="color:var(--ok)">${onPlan}</td>
+      <td class="mono" style="color:${needs?'var(--risk)':'var(--faint)'}">${needs||"–"}</td>
+      <td><span class="mini"><span class="f" style="width:${avg}%;background:${COL[worst]}"></span></span><span class="mono">${avg}%</span></td>
+      <td><span class="pill ${PILLCLASS[worst]}"><span class="d"></span>${LABEL[worst]}</span></td>
+    </tr>`;
+  }).join("");
+}
+
+/* ---- auto-generated mermaid (what gets written into a GitHub issue) ---- */
+function renderMermaid(){
+  const cls={done:"done",ok:"ok",risk:"risk",blocked:"blocked"};
+  let lines=["```mermaid","flowchart LR"];
+  const seen=new Set();
+  const nodeDef=it=>`  n${it.id.slice(1)}["${it.id} ${it.title}"]:::${cls[it.status]}`;
+  DATA.items.forEach(it=> it.blockedBy.forEach(b=>{
+    const from=byId(b);
+    lines.push(`${nodeDef(from)} --> ${nodeDef(it)}`); seen.add(b); seen.add(it.id);
+  }));
+  lines.push("  classDef done fill:#13263c,stroke:#58A6FF,color:#cde;");
+  lines.push("  classDef ok fill:#15301f,stroke:#3FB950,color:#cfe;");
+  lines.push("  classDef risk fill:#352a18,stroke:#D29922,color:#fed;");
+  lines.push("  classDef blocked fill:#3a1d1d,stroke:#F85149,color:#fdd;");
+  lines.push("```");
+  document.getElementById("mermaid").textContent = lines.join("\n");
+}
+
+/* tabs */
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("act"));
+  document.querySelectorAll(".pane").forEach(x=>x.classList.remove("act"));
+  t.classList.add("act");
+  document.querySelector(`.pane[data-pane="${t.dataset.tab}"]`).classList.add("act");
+}));
+
+/* init */
+function boot(){
+  recomputeCrit();
+  document.getElementById("updated").textContent = DATA.meta.updated;
+  renderKpis(); renderGraph(); renderRoadmap(); renderTeams(); renderMermaid();
+  const blocked = DATA.items.find(i=>i.status==="blocked") || DATA.items[0];
+  if(blocked) select(blocked.id); // open a blocked item to showcase the dependency chain
+}
+// On GitHub Pages the Action publishes data.json next to this file; load it if present.
+// Opened as a local file it falls back to the embedded demo data above.
+(async () => {
+  if (location.protocol === "http:" || location.protocol === "https:") {
+    try {
+      const r = await fetch("data.json", {cache:"no-store"});
+      if (r.ok) Object.assign(DATA, await r.json());
+    } catch (_) { /* fall back to embedded demo data */ }
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
