@@ -54,9 +54,18 @@ function fromGitHub() {
     "--owner", OWNER, "--format", "json", "--limit", "200",
   ]);
 
+  // Repo -> team, brukt til å bygge globalt unike, korte id-er (issue-numre
+  // er kun unike innad i hvert repo, ikke på tvers av porteføljen).
+  const repoTeam = {};
+  for (const i of proj.items) {
+    if (i.content?.type !== "Issue") continue;
+    repoTeam[i.content.repository] = (i.team || i.content.repository || "ukjent").toString().toLowerCase();
+  }
+  const shortId = (repo, number) => `#${repoTeam[repo] || repo}-${number}`;
+
   // 2) Avhengigheter pr. issue. gh v2.94+ eksponerer disse som JSON-felt.
-  //    Tips: kjør `gh issue list --json` uten verdi for å se gyldige feltnavn
-  //    i din versjon — kall det «blockedBy» her og juster ved behov.
+  //    blockedBy/subIssues er GraphQL-connections ({nodes:[...], totalCount}),
+  //    ikke rene arrays.
   const repos = [...new Set(proj.items
     .map(i => i.content?.repository).filter(Boolean))];
   const deps = {};
@@ -67,10 +76,15 @@ function fromGitHub() {
         "--json", "number,blockedBy,subIssues",
       ]);
       for (const it of issues) {
+        const blockedByNodes = it.blockedBy?.nodes || [];
+        const subNodes = it.subIssues?.nodes || [];
         deps[`${repo}#${it.number}`] = {
-          blockedBy: (it.blockedBy || []).map(b => `${repo}#${b.number}`),
-          subs: it.subIssues
-            ? [it.subIssues.filter(s => s.state === "CLOSED").length, it.subIssues.length]
+          blockedBy: blockedByNodes.map(b => {
+            const m = b.url && b.url.match(/github\.com\/([^/]+\/[^/]+)\/issues\/(\d+)/);
+            return m ? shortId(m[1], Number(m[2])) : shortId(repo, b.number);
+          }),
+          subs: subNodes.length
+            ? [subNodes.filter(s => s.state === "CLOSED").length, subNodes.length]
             : null,
         };
       }
@@ -96,14 +110,14 @@ function fromGitHub() {
       const progress = subs[1] ? Math.round((subs[0] / subs[1]) * 100)
         : (normStatus(i.leveransestatus) === "done" ? 100 : 0);
       return {
-        id: `#${c.number}`,
+        id: shortId(c.repository, c.number),
         title: c.title,
         team: team.toLowerCase(),
         quarter: i.kvartal || "—",
         status: normStatus(i.leveransestatus),
         progress,
         subs,
-        blockedBy: (d.blockedBy || []).map(b => "#" + b.split("#")[1]),
+        blockedBy: d.blockedBy || [],
         url: c.url,
       };
     });
