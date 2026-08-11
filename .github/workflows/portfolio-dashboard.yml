@@ -41,7 +41,7 @@ jobs:
 
       - name: Generer data.json + Mermaid
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
         run: node scripts/generate-dashboard.mjs
 
       - name: Oppdater "Avhengighetskart"-issue
