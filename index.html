@@ -342,9 +342,10 @@ function renderGraph(){
     });
   });
 
-  // nodes
+  // nodes (hopp over items uten kjent kvartal - de far ingen posisjon i layout())
   DATA.items.forEach(it=>{
-    const p=nodePos[it.id]; const lines=wrap(it.title);
+    const p=nodePos[it.id]; if(!p) return;
+    const lines=wrap(it.title);
     s+=`<g class="gnode" data-node="${it.id}" tabindex="0" role="button" aria-label="${it.id} ${it.title}">
       <rect class="box" x="${p.x}" y="${p.y}" width="${NODEW}" height="${NODEH}" rx="9" fill="${BG[it.status]}" stroke="${COL[it.status]}" stroke-width="1.4"/>
       <rect x="${p.x}" y="${p.y}" width="4" height="${NODEH}" rx="2" fill="${COL[it.status]}"/>
